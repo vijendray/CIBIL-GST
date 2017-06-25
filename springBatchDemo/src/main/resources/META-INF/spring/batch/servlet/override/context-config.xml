@@ -1,0 +1,108 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"	
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/jdbc 
+	    http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+	     http://www.springframework.org/schema/tx 
+        http://www.springframework.org/schema/tx/spring-tx.xsd
+	    http://www.springframework.org/schema/context
+		http://www.springframework.org/schema/context/spring-context.xsd">
+	    
+<context:component-scan base-package="com.cibil.gst.batch.entity" />
+
+	<!-- using in-memory store for batch meta-data --> 
+	<bean id="jobRepository"
+		class="org.springframework.batch.core.repository.support.JobRepositoryFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="transactionManager" ref="transactionManager" />
+		<property name="databaseType" value="mysql" />
+	</bean>
+ 	
+	<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"/>	
+	</bean>
+	
+	
+	 
+	<bean id="jobLauncher"
+		class="org.springframework.batch.core.launch.support.SimpleJobLauncher">
+		<property name="jobRepository" ref="jobRepository" />
+	</bean>
+	
+	<!--<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		lazy-init="true" destroy-method="close">
+		<property name="driverClassName" value="org.hsqldb.jdbcDriver" />
+		<property name="url"
+			value="jdbc:hsqldb:file:src/main/resources/hsqldb/batchcore.db;shutdown=true;" />		
+		<property name="username" value="sa" />
+		<property name="password" value="" />
+	</bean>  -->
+	
+	 <!--DataSource  -->  		
+		
+	 <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		lazy-init="true" destroy-method="close">
+        <property name="driverClassName" value="${database.driverClass}" />
+        <property name="url" value="${database.url}" />
+        <property name="username" value="${database.username}" />
+        <property name="password" value="${database.password}" />         
+	</bean> 
+	
+
+	<!--Create meta-tables. Here we are also invoking the initial-query.sql script  -->  
+   <jdbc:initialize-database data-source="dataSource" enabled="false">
+	   <jdbc:script location="classpath:hsqldb/initial-query.sql" />
+		<jdbc:script location="classpath*:org/springframework/batch/core/schema-drop-mysqldb.sql" />
+		<jdbc:script location="classpath*:org/springframework/batch/core/schema-mysqldb.sql" /> 
+    </jdbc:initialize-database> 
+    
+    
+<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+	<property name="viewClass" value="org.springframework.web.servlet.view.InternalResourceView"/>
+	<property name="prefix" value="/WEB-INF/jsp"/>
+	<property name="suffix" value=".jsp"/>
+</bean>
+
+<bean id="messageSource" class="org.springframework.context.support.ResourceBundleMessageSource">
+	<property name="basename" value="messages"/>	
+</bean>
+
+    
+    
+    <!-- <bean id="jdbcUtil" class="com.cibil.gst.utils.JDBCUtil">
+		<property name="dbUrl" value="jdbc:mysql://172.16.0.125:3306/cibil_gst"/>
+		<property name="port" value="3306"></property>
+		<property name="userName" value="root"/>
+		<property name="password" value="Cibil#123"/>
+	</bean>
+	
+	<bean id="customerDAO" class="com.cibil.gst.dao.impl.CustomerDaoImpl">
+		<property name="jdbcUtil" ref="jdbcUtil"/>
+	</bean> --> 
+	
+	<!-- 	<bean id="commonUtil" class="com.cibil.gst.utils.CommonUtil"/>
+		
+	<bean id="customerService" class="com.cibil.gst.service.impl.CustomerServiceImpl">
+		<property name="customerDao" ref="customerDAO"/>
+	</bean> 	 -->
+	
+	
+	
+  <!-- <bean id="userVaalidator" class="com.cibil.gst.controller.UserVaalidator"/> -->      
+
+
+
+<!-- 
+<bean id="resourceService"
+class="org.springframework.batch.admin.web.resources.DefaultResourceService">
+    <property name="servletPath" value="login1.jsp" />
+</bean> -->
+
+
+</beans>
+

@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:batch="http://www.springframework.org/schema/batch" 
+	xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/batch
+	http://www.springframework.org/schema/batch/spring-batch-3.0.xsd
+	http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+	http://www.springframework.org/schema/util
+	http://www.springframework.org/schema/util/spring-util-4.0.xsd
+	http://www.springframework.org/schema/context
+	http://www.springframework.org/schema/context/spring-context.xsd
+	http://www.springframework.org/schema/tx 
+    http://www.springframework.org/schema/tx/spring-tx.xsd">
+	
+	<context:component-scan base-package="com.cibil.gst.batch.entity" />
+	<context:component-scan base-package="com.cibil.gst.dao.impl" />
+	
+	
+	
+	<!-- <import resource="../servlet/override/context-config.xml"/>  -->
+	
+	<!-- Hibernate starts -->
+	
+	
+	<!-- Cache Config -->
+	 <tx:annotation-driven transaction-manager="transactionManager" /> 
+	 
+	 <bean id="transactionManager"
+          class="org.springframework.orm.hibernate4.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory" />
+    </bean>
+	
+	 <bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource"
+		lazy-init="true" destroy-method="close">
+        <property name="driverClassName" value="${database.driverClass}" />
+        <property name="url" value="${database.url}" />
+        <property name="username" value="${database.username}" />
+        <property name="password" value="${database.password}" />         
+</bean> 
+	
+	 <bean id="sessionFactory" class="org.springframework.orm.hibernate4.LocalSessionFactoryBean">
+    <property name="dataSource" ref="dataSource"/>    
+    <property name="hibernateProperties">  
+	      <props>
+		      	<prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+		        <prop key="hibernate.show_sql">true</prop>
+		        <prop key="hibernate.format_sql">true</prop>
+		        <!-- <prop key="hibernate.use_sql_comments">${hibernate.use_sql_comments}</prop> -->
+		        <prop key="hbm2ddl.auto">update</prop>
+		        <prop key="hibernate.cache.use_query_cache">true</prop>
+		        <prop key="hibernate.generate_statistics">true</prop>
+		        <prop key="hibernate.cache.use_second_level_cache">true</prop>
+		        <prop key="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.SingletonEhCacheRegionFactory</prop>
+		       <!--  <prop key="hibernate.connection.release_mode">after_statement</prop> -->
+		        <prop key="org.hibernate.cache.ehcache.configurationResourceName">/ehcache.xml</prop>
+		        
+		        
+	      </props>
+     
+       <!--  <value>
+            hibernate.format_sql=true
+            hibernate.show_sql=true
+            hibernate.cache.use_second_level_cache=true
+            hibernate.cache.use_query_cache=true
+            hibernate.hbm2ddl.auto= update
+            hibernate.generate_statistics=true
+            org.hibernate.cache.ehcache.configurationResourceName=ehcache.xml
+            hibernate.cache.region.factory_class=org.hibernate.cache.ehcache.SingletonEhCacheRegionFactory
+            hibernate.dialect=org.hibernate.dialect.MySQLDialect
+        </value>  -->
+    </property>
+    <property name="packagesToScan" value="com.cibil.gst.batch.entity" />
+</bean>
+     
+   
+<bean id="hibernateUtil" class="com.cibil.gst.batch.entity.HibernateUtil">
+<property name="sessionFactory" ref="sessionFactory"/>
+</bean>
+
+<bean id="service" class="com.cibil.gst.batch.entity.ServiceImpl">
+	<property name="hibernateUtil" ref="hibernateUtil"/>
+</bean>
+
+<bean id="MyProcessor" class="com.cibil.gst.processor.MyProcessor">
+	
+</bean> 
+     
+     
+     <!-- Hibernate ends -->
+	
+	
+	
+	
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+		
+	
+	
+	 <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="locations">
+			<list>
+				<value>classpath:batch-default.properties</value>		
+					<value>classpath:log4.properties</value>							
+			</list>
+		</property>
+		<property name="searchSystemEnvironment" value="true" />
+		<property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" />
+		<property name="ignoreUnresolvablePlaceholders" value="true" />
+	</bean> 
+	
+	
+	
+	 <job id="Batch_Processing" xmlns="http://www.springframework.org/schema/batch" restartable="true">
+   		<step id="myStep" allow-start-if-complete="true" next="callStoredProcedure">
+   			<partition step="csv2Slave" partitioner="rangePartitioner">	
+   				<handler grid-size="1" task-executor="taskExecutor" />  
+   			</partition>
+   			<!-- <tasklet>
+   				<chunk reader="cvsFileItemReader1" writer="itemWriter1" processor="csv2Processor" commit-interval="10"/>   	
+   			</tasklet>  -->  		
+   	</step>
+   	
+   		<step id="callStoredProcedure">
+
+                <tasklet ref="loolup"/>
+
+            </step>
+   	
+   </job>
+   
+   <bean id="loolup" class="com.cibil.gst.batch.entity.MyLookUP">
+<property name="service" ref="service"/>
+</bean>
+
+
+ 
+  <!-- each thread will run this job, with different stepExecutionContext values. -->
+ <step id="csv2Slave" xmlns="http://www.springframework.org/schema/batch">
+	<tasklet>
+		<chunk reader="cvsFileItemReader1" writer="itemWriter1"	processor="itemProcessor2" commit-interval="10" />
+	</tasklet>
+ </step> 
+ 
+   
+    <job id="Commercial_CSV" xmlns="http://www.springframework.org/schema/batch" restartable="true"> 
+	   <!-- master step, 10 threads (grid-size)  -->
+	    <step id="masterStep" allow-start-if-complete="true">
+			<partition step="slave" partitioner="rangePartitioner">
+			<handler grid-size="1" task-executor="taskExecutor" />             <!--   Multi threading implementation	 -->
+			</partition>
+	    </step>
+  	</job>
+ 
+ <bean id="rangePartitioner" class="com.cibil.gst.partition.RangePartitioner"/>  
+  <!-- each thread will run this job, with different stepExecutionContext values. -->
+  <step id="slave" xmlns="http://www.springframework.org/schema/batch">
+	<tasklet>
+		<chunk reader="cvsFileItemReader" writer="flatFileItemWriter"
+			processor="itemProcessor" commit-interval="10" />
+	</tasklet>
+  </step> 
+  
+ <!--   <bean id="multiResourceReader"
+		class=" org.springframework.batch.item.file.MultiResourceItemReader">
+	 <property name="resources" value="file:D:\\folder/*.csv" /> 
+	<property name="resources" value="${CSV1_INPUT_FILE_LOCATION}" />
+	
+	<property name="delegate" ref="cvsFileItemReader" />
+  </bean> -->
+  
+  
+  
+  <bean id="userBean" class="com.cibil.gst.model.User" scope="prototype"/>
+  <bean id="advisorBillingBean" class="com.cibil.gst.model.Advisor" scope="prototype"/>
+  
+  <bean id="cvsFileItemReader" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+ 	 <!-- Read a csv file -->
+	 <property name="resource" value="${CSV1_INPUT_FILE_LOCATION}" />  
+	
+	<property name="lineMapper">
+		<bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+			 <property name="fieldSetMapper">   
+			      <!-- map to an object -->
+			      <bean class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+			     <property name="prototypeBeanName" value="userBean" />
+			      </bean>   
+			   </property>
+		  		
+		  		<property name="lineTokenizer">
+                    <!-- A tokenizer class to be used when items in input record are separated by specific characters -->
+                    <bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+                        <!-- <property name="delimiter" value="," /> -->
+                    <property name="names" value="TICKET_ID,Member_Id,Member_Name,USER_ID,PRODUCT_NAME,REQUEST_TYPE,REQUEST_DATE,
+                        FULFILLED_DATE,CREDIT_UNITS_DEDUCTED,USAGE_CONTRACT_ID,DUNS_NUMBER,BORROWER_NAME
+                        ,APPLICATION_REFERENCE_NO,APPLICATION_AMOUNT,SELF_ENQIRY,STATUS,RESTORE_CREDIT_UNITS,
+                        RESTORED_DATE,RESTORED_IN_CONTRACT_ID,RESTORED_REASON,CSE_USER,CSE_USER_NOTE,
+                        SEARCH_CRITERIA,CMR_DELIVERED" />
+                    </bean>
+                </property>
+          </bean>
+	  </property>
+	  
+  </bean>
+
+    
+  
+  <bean id="taskExecutor" class="org.springframework.core.task.SimpleAsyncTaskExecutor" >
+ 	  <property name="concurrencyLimit" value="10"/>
+  </bean>
+
+  <!-- inject stepExecutionContext -->
+  <bean id="itemProcessor" class="com.cibil.gst.processor.UserProcessor" scope="step">
+	<property name="threadName" value="#{stepExecutionContext[name]}" />	
+  </bean>
+  
+<!-- inject stepExecutionContext -->
+  <bean id="itemProcessor2" class="com.cibil.gst.processor.UserProcessor2" scope="step">
+	<property name="threadName2" value="#{stepExecutionContext[name]}" />	
+  </bean>
+  
+  
+  <!-- csv file writer -->
+  <bean id="flatFileItemWriter" class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+  		  <property name="resource" value="file:csv/outputs/Billing_log_output_#{stepExecution.jobExecution.jobId}.csv" />    
+  		 <!-- <property name="resource" value="file:DATA/Output/abc.csv" /> --> 	
+  		 <!-- <property name="resource" value="${CSV1_OUTPUT_FILE_LOCATION}.csv" /> -->
+		<property name="appendAllowed" value="false" />
+		<property name="lineAggregator">
+		  <bean
+			class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+			<property name="delimiter" value="," />
+			<property name="fieldExtractor">
+			  <bean
+				class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+					<property name="names" value="TICKET_ID,Member_Id,Member_Name,USER_ID,
+					source,des,flag,PRODUCT_NAME,REQUEST_TYPE,REQUEST_DATE,FULFILLED_DATE,
+					CREDIT_UNITS_DEDUCTED,USAGE_CONTRACT_ID,DUNS_NUMBER,BORROWER_NAME,
+					APPLICATION_REFERENCE_NO,APPLICATION_AMOUNT,SELF_ENQIRY,
+					STATUS,RESTORE_CREDIT_UNITS,RESTORED_DATE,RESTORED_IN_CONTRACT_ID,
+					RESTORED_REASON,CSE_USER,CSE_USER_NOTE,SEARCH_CRITERIA,CMR_DELIVERED" />
+			  </bean>
+			</property>
+		  </bean>
+		</property>
+  </bean>
+  
+  
+  
+   <bean id="cvsFileItemReader1" class="org.springframework.batch.item.file.FlatFileItemReader" scope="step">
+ 	 <!-- Read a csv file -->
+	 <property name="resource" value="${CSV2_INPUT_FILE_LOCATION}" /> 
+	
+	<property name="lineMapper">
+		<bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+			 <property name="fieldSetMapper">   
+			      <!-- map to an object -->
+			      <bean class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+			     <property name="prototypeBeanName" value="advisorBillingBean" />
+			      </bean>   
+			   </property>
+		  		
+		  		<property name="lineTokenizer">
+                    <!-- A tokenizer class to be used when items in input record are separated by specific characters -->
+                  <bean class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+                        <!-- <property name="delimiter" value="," /> -->
+                  <property name="names" value="RecordID,File_Name,Member_code,Member_Name,Template_Code,Start_date,End_date,Number_of_characteristics,Number_of_total_records,
+								Number_of_records_processed,TUCSCR_Score_1_or_Score_2_Count,PL_Score_Count,GenScore2_Score_Count,PS1_Score_Count,PS2_Score_Count,
+								PS3_Score_Count,File_Type,Data_Date,No_Hit_Count,Score_requested,BCC_Variables_or_Hit_Count,Rejects,KAM,Comment" />
+                    </bean>
+                </property>
+          </bean>
+	  </property>
+	  
+  </bean>
+  
+  <bean id="itemWriter1" class="org.springframework.batch.item.file.FlatFileItemWriter" scope="step">
+    <!-- Local  -->
+  		  <property name="resource" value="file:csv/outputs/Billing_log_output2_#{stepExecution.jobExecution.jobId}.csv" />	
+   <!-- Server  -->		 
+  		 <!--  <property name="resource" value="${CSV2_OUTPUT_FILE_LOCATION}.csv" /> --> 
+			
+		
+		<property name="appendAllowed" value="false" />
+		<property name="lineAggregator">
+		  <bean
+			class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+			<property name="delimiter" value="," />
+			<property name="fieldExtractor">
+			  <bean
+				class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+					<property name="names" value="RecordID,File_Name,Member_code,Member_Name,source,des,flag,Start_date,End_date,Number_of_characteristics,
+								Number_of_total_records,Number_of_records_processed,TUCSCR_Score_1_or_Score_2_Count,PL_Score_Count,GenScore2_Score_Count,PS1_Score_Count,
+								PS2_Score_Count,PS3_Score_Count,File_Type,Data_Date,No_Hit_Count,Score_requested,BCC_Variables_or_Hit_Count,Rejects,KAM,Comment" />
+			  </bean>
+			</property>
+		  </bean>
+		</property>
+  </bean>
+  
+  <bean id="commonUtil" class="com.cibil.gst.utils.CommonUtil"/>
+  
+	 <job id="MTR_Extract" xmlns="http://www.springframework.org/schema/batch" restartable="true">
+   	<step id="FFFStep" >
+   		<tasklet>
+   			<chunk reader="myItemReader" writer="myItemWriter" processor="myItemProcessor" commit-interval="1"/>   			
+   		</tasklet>   		
+   	</step>
+   
+   	
+   </job>
+   
+   
+   
+
+     <bean id="myItemReader" class="com.cibil.gst.reader.MyReader">
+   		<property name="resource" value="${FFF_INPUT_FILE_LOCATION}"/>
+   		
+   </bean>
+   
+   <bean id="myItemProcessor" class="com.cibil.gst.processor.MyProcessor" scope="step">
+  	 <property name="commonUtil" ref="commonUtil"/>   
+   </bean>
+   
+ <!-- csv file writer -->
+  <bean id="myItemWriter" class="com.cibil.gst.writer.MyWriter" scope="step" >
+	<property name="resource" value="${FFF_OUTPUT_FILE_LOCATION}.txt"/>
+  </bean>    	
+</beans>
