@@ -23,6 +23,10 @@ import com.cibil.gst.dao.impl.CustomerDaoImpl;
 import com.cibil.gst.processor.UserProcessor;
 import com.cibil.gst.service.impl.CustomerServiceImpl;
 
+/**
+ * @author vijyadav
+ *
+ */
 public class App {
 
 	long start_time = 0;
